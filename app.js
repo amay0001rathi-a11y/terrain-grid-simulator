@@ -351,11 +351,11 @@ class TerrainGridSimulator {
     }
 
     updateAreaDisplay() {
-        const areaSqKm = this.boxAreaHectares / 100;
+        const areaSqKm = this.boxAreaHectares / 100; // 1 Ha = 0.01 sq km
         document.getElementById('areaSizeDisplay').textContent =
-            `Area: ${this.boxAreaHectares.toFixed(2)} Ha (${areaSqKm.toFixed(3)} sq km)`;
+            `Area: ${this.boxAreaHectares.toFixed(2)} Ha (${areaSqKm.toFixed(2)} sq km)`;
         document.getElementById('selectedAreaInfo').textContent =
-            `${this.boxAreaHectares.toFixed(2)} Ha`;
+            `${this.boxAreaHectares.toFixed(2)} Ha (${areaSqKm.toFixed(2)} sq km)`;
     }
 
     clearAllTerrain() {
