@@ -7,12 +7,14 @@ class TerrainGridSimulator {
         this.gridData = new Map();
         this.selectedTerrain = null;
         this.paintMode = false;
+        this.referenceImageOverlay = null;
 
-        // Default area parameters (0.26 sq km)
-        this.areaSizeKm = 0.26;
+        // Default area parameters
         this.centerLat = 13.3671; // Cambodia coordinates from image
         this.centerLng = 103.8448;
-        this.gridCellSize = 50; // meters
+        this.areaWidth = 500; // meters
+        this.areaHeight = 500; // meters
+        this.gridCellSize = 50; // meters (0.25 hectares = 50m x 50m)
 
         // Terrain colors
         this.terrainColors = {
@@ -39,6 +41,23 @@ class TerrainGridSimulator {
 
         document.getElementById('exportBtn').addEventListener('click', () => {
             this.exportConfiguration();
+        });
+
+        // Reference image overlay
+        document.getElementById('uploadReferenceBtn').addEventListener('click', () => {
+            document.getElementById('referenceImageFile').click();
+        });
+
+        document.getElementById('referenceImageFile').addEventListener('change', (e) => {
+            this.uploadReferenceImage(e);
+        });
+
+        document.getElementById('imageOpacity').addEventListener('input', (e) => {
+            this.updateImageOpacity(e.target.value);
+        });
+
+        document.getElementById('removeReferenceBtn').addEventListener('click', () => {
+            this.removeReferenceImage();
         });
 
         // Area setup
@@ -74,11 +93,16 @@ class TerrainGridSimulator {
     }
 
     initMap() {
-        this.map = new google.maps.Map(document.getElementById('map'), {
-            center: { lat: this.centerLat, lng: this.centerLng },
-            zoom: 15,
-            mapTypeId: 'satellite'
-        });
+        if (!this.map) {
+            this.map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: this.centerLat, lng: this.centerLng },
+                zoom: 17,
+                mapTypeId: 'satellite',
+                tilt: 0
+            });
+        } else {
+            this.map.setCenter({ lat: this.centerLat, lng: this.centerLng });
+        }
 
         this.drawArea();
         this.createGrid();
@@ -90,15 +114,20 @@ class TerrainGridSimulator {
             this.areaRectangle.setMap(null);
         }
 
-        // Calculate bounds for 0.26 sq km area
-        const sideLengthKm = Math.sqrt(this.areaSizeKm);
-        const sideLengthDeg = sideLengthKm / 111; // Rough conversion
+        // Convert meters to degrees (approximate)
+        // 1 degree latitude ≈ 111,000 meters
+        // 1 degree longitude ≈ 111,000 * cos(latitude) meters
+        const latDegPerMeter = 1 / 111000;
+        const lngDegPerMeter = 1 / (111000 * Math.cos(this.centerLat * Math.PI / 180));
+
+        const halfWidth = (this.areaWidth / 2) * lngDegPerMeter;
+        const halfHeight = (this.areaHeight / 2) * latDegPerMeter;
 
         const bounds = {
-            north: this.centerLat + sideLengthDeg / 2,
-            south: this.centerLat - sideLengthDeg / 2,
-            east: this.centerLng + sideLengthDeg / 2,
-            west: this.centerLng - sideLengthDeg / 2
+            north: this.centerLat + halfHeight,
+            south: this.centerLat - halfHeight,
+            east: this.centerLng + halfWidth,
+            west: this.centerLng - halfWidth
         };
 
         this.areaRectangle = new google.maps.Rectangle({
@@ -112,6 +141,10 @@ class TerrainGridSimulator {
         });
 
         this.bounds = bounds;
+
+        // Update area display
+        const areaSqKm = (this.areaWidth * this.areaHeight) / 1000000;
+        document.getElementById('areaSizeDisplay').textContent = `Area: ${areaSqKm.toFixed(3)} sq km`;
     }
 
     createGrid() {
@@ -121,16 +154,16 @@ class TerrainGridSimulator {
 
         if (!this.bounds) return;
 
-        // Calculate number of cells
-        const sideLengthMeters = Math.sqrt(this.areaSizeKm * 1000000);
-        const cellsPerSide = Math.ceil(sideLengthMeters / this.gridCellSize);
+        // Calculate number of cells based on area and cell size
+        const cellsWidth = Math.ceil(this.areaWidth / this.gridCellSize);
+        const cellsHeight = Math.ceil(this.areaHeight / this.gridCellSize);
 
-        const latStep = (this.bounds.north - this.bounds.south) / cellsPerSide;
-        const lngStep = (this.bounds.east - this.bounds.west) / cellsPerSide;
+        const latStep = (this.bounds.north - this.bounds.south) / cellsHeight;
+        const lngStep = (this.bounds.east - this.bounds.west) / cellsWidth;
 
         // Create grid cells
-        for (let i = 0; i < cellsPerSide; i++) {
-            for (let j = 0; j < cellsPerSide; j++) {
+        for (let i = 0; i < cellsHeight; i++) {
+            for (let j = 0; j < cellsWidth; j++) {
                 const cellBounds = {
                     north: this.bounds.south + (i + 1) * latStep,
                     south: this.bounds.south + i * latStep,
@@ -162,8 +195,12 @@ class TerrainGridSimulator {
             }
         }
 
+        // Calculate hectares per cell
+        const hectaresPerCell = (this.gridCellSize * this.gridCellSize) / 10000;
+
         // Update grid info
-        document.getElementById('gridInfo').textContent = `Grid: ${cellsPerSide} x ${cellsPerSide} cells (${cellsPerSide * cellsPerSide} total)`;
+        document.getElementById('gridInfo').textContent =
+            `Grid: ${cellsWidth} x ${cellsHeight} cells (${cellsWidth * cellsHeight} total) - Each cell = ${hectaresPerCell.toFixed(2)} Ha`;
         this.updateStatistics();
     }
 
@@ -207,10 +244,17 @@ class TerrainGridSimulator {
     applyAreaSettings() {
         this.centerLat = parseFloat(document.getElementById('centerLat').value);
         this.centerLng = parseFloat(document.getElementById('centerLng').value);
+        this.areaWidth = parseFloat(document.getElementById('areaWidth').value);
+        this.areaHeight = parseFloat(document.getElementById('areaHeight').value);
 
-        this.map.setCenter({ lat: this.centerLat, lng: this.centerLng });
-        this.drawArea();
-        this.createGrid();
+        if (!this.map) {
+            this.initMap();
+            alert('Map loaded! You can now upload a reference image to overlay.');
+        } else {
+            this.map.setCenter({ lat: this.centerLat, lng: this.centerLng });
+            this.drawArea();
+            this.createGrid();
+        }
     }
 
     applyGridSettings() {
@@ -229,9 +273,67 @@ class TerrainGridSimulator {
         if (confirm('Reset grid to default settings?')) {
             document.getElementById('centerLat').value = 13.3671;
             document.getElementById('centerLng').value = 103.8448;
+            document.getElementById('areaWidth').value = 500;
+            document.getElementById('areaHeight').value = 500;
             document.getElementById('gridSize').value = 50;
             this.gridData.clear();
             this.applyAreaSettings();
+        }
+    }
+
+    uploadReferenceImage(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        if (!this.map) {
+            alert('Please load the map first by clicking "Load Map & Apply Area"');
+            event.target.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            // Remove existing overlay
+            if (this.referenceImageOverlay) {
+                this.referenceImageOverlay.setMap(null);
+            }
+
+            // Create image overlay
+            this.referenceImageOverlay = new google.maps.GroundOverlay(
+                e.target.result,
+                this.bounds,
+                {
+                    opacity: 0.5,
+                    clickable: false
+                }
+            );
+
+            this.referenceImageOverlay.setMap(this.map);
+
+            // Show controls
+            document.getElementById('referenceImageControls').style.display = 'block';
+
+            alert('Reference image loaded! Use the opacity slider to adjust visibility. You can now paint terrain on the grid.');
+        };
+        reader.readAsDataURL(file);
+
+        // Reset file input
+        event.target.value = '';
+    }
+
+    updateImageOpacity(value) {
+        document.getElementById('opacityValue').textContent = value + '%';
+        if (this.referenceImageOverlay) {
+            this.referenceImageOverlay.setOpacity(value / 100);
+        }
+    }
+
+    removeReferenceImage() {
+        if (this.referenceImageOverlay) {
+            this.referenceImageOverlay.setMap(null);
+            this.referenceImageOverlay = null;
+            document.getElementById('referenceImageControls').style.display = 'none';
+            alert('Reference image removed.');
         }
     }
 
@@ -265,12 +367,13 @@ class TerrainGridSimulator {
 
     exportConfiguration() {
         const config = {
-            version: '1.0',
+            version: '2.0',
             timestamp: new Date().toISOString(),
             area: {
                 centerLat: this.centerLat,
                 centerLng: this.centerLng,
-                sizeKm: this.areaSizeKm
+                width: this.areaWidth,
+                height: this.areaHeight
             },
             grid: {
                 cellSize: this.gridCellSize
@@ -300,13 +403,24 @@ class TerrainGridSimulator {
             try {
                 const config = JSON.parse(e.target.result);
 
-                // Apply area settings
+                // Apply area settings (support both v1 and v2 formats)
                 this.centerLat = config.area.centerLat;
                 this.centerLng = config.area.centerLng;
-                this.areaSizeKm = config.area.sizeKm;
+
+                if (config.version === '2.0') {
+                    this.areaWidth = config.area.width;
+                    this.areaHeight = config.area.height;
+                } else {
+                    // Legacy v1.0 format
+                    const sideLengthMeters = Math.sqrt(config.area.sizeKm * 1000000);
+                    this.areaWidth = sideLengthMeters;
+                    this.areaHeight = sideLengthMeters;
+                }
 
                 document.getElementById('centerLat').value = this.centerLat;
                 document.getElementById('centerLng').value = this.centerLng;
+                document.getElementById('areaWidth').value = this.areaWidth;
+                document.getElementById('areaHeight').value = this.areaHeight;
 
                 // Apply grid settings
                 this.gridCellSize = config.grid.cellSize;
