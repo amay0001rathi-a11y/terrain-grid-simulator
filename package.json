@@ -4,8 +4,8 @@
   "description": "Terrain Grid Simulator - Standalone image-based grid mapping tool",
   "main": "index.html",
   "scripts": {
-    "dev": "python -m http.server 8000",
-    "start": "python -m http.server 8000"
+    "dev": "npx http-server -p 8000 -o",
+    "start": "npx http-server -p 8000"
   },
   "repository": {
     "type": "git",
