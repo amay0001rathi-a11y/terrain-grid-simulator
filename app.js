@@ -15,7 +15,7 @@ class TerrainGridSimulator {
         this.boundaryStart = null;
 
         // Area parameters
-        this.boxAreaSqMeters = 250000; // Default 0.25 sq km
+        this.boxAreaHectares = 25; // Default 25 Ha = 0.25 sq km
         this.gridCellSize = 50; // meters (0.25 hectares = 50m x 50m)
 
         // Terrain colors
@@ -60,12 +60,13 @@ class TerrainGridSimulator {
             this.enableBoundaryDrawing();
         });
 
-        document.getElementById('applyArea').addEventListener('click', () => {
+        // Area input - auto update on change
+        document.getElementById('boxArea').addEventListener('input', () => {
             this.applyAreaSettings();
         });
 
-        // Grid configuration
-        document.getElementById('applyGrid').addEventListener('click', () => {
+        // Grid configuration - auto update on change
+        document.getElementById('gridSize').addEventListener('input', () => {
             this.applyGridSettings();
         });
 
@@ -201,8 +202,8 @@ class TerrainGridSimulator {
     }
 
     applyAreaSettings() {
-        const boxArea = parseFloat(document.getElementById('boxArea').value);
-        this.boxAreaSqMeters = boxArea;
+        const boxAreaHa = parseFloat(document.getElementById('boxArea').value);
+        this.boxAreaHectares = boxAreaHa;
         this.updateAreaDisplay();
         this.redraw();
     }
@@ -213,8 +214,9 @@ class TerrainGridSimulator {
         if (!this.boundaryBox) return;
 
         // Calculate number of cells based on area and cell size
+        const boxAreaSqMeters = this.boxAreaHectares * 10000; // Convert Ha to m²
         const cellAreaSqMeters = this.gridCellSize * this.gridCellSize; // 2500 m² for 50m cells
-        const totalCells = Math.ceil(this.boxAreaSqMeters / cellAreaSqMeters);
+        const totalCells = Math.ceil(boxAreaSqMeters / cellAreaSqMeters);
 
         // Try to make grid as square as possible
         const aspectRatio = this.boundaryBox.width / this.boundaryBox.height;
@@ -349,12 +351,11 @@ class TerrainGridSimulator {
     }
 
     updateAreaDisplay() {
-        const areaSqKm = this.boxAreaSqMeters / 1000000;
-        const areaHectares = this.boxAreaSqMeters / 10000;
+        const areaSqKm = this.boxAreaHectares / 100;
         document.getElementById('areaSizeDisplay').textContent =
-            `Area: ${areaSqKm.toFixed(3)} sq km (${areaHectares.toFixed(2)} Ha)`;
+            `Area: ${this.boxAreaHectares.toFixed(2)} Ha (${areaSqKm.toFixed(3)} sq km)`;
         document.getElementById('selectedAreaInfo').textContent =
-            `${areaSqKm.toFixed(3)} sq km`;
+            `${this.boxAreaHectares.toFixed(2)} Ha`;
     }
 
     clearAllTerrain() {
@@ -366,11 +367,11 @@ class TerrainGridSimulator {
 
     resetGrid() {
         if (confirm('Reset everything?')) {
-            document.getElementById('boxArea').value = 250000;
+            document.getElementById('boxArea').value = 25;
             document.getElementById('gridSize').value = 50;
             this.gridData.clear();
             this.boundaryBox = null;
-            this.boxAreaSqMeters = 250000;
+            this.boxAreaHectares = 25;
             this.gridCellSize = 50;
             this.redraw();
         }
@@ -406,11 +407,11 @@ class TerrainGridSimulator {
 
     exportConfiguration() {
         const config = {
-            version: '4.0',
+            version: '5.0',
             timestamp: new Date().toISOString(),
             boundaryBox: this.boundaryBox,
             area: {
-                sqMeters: this.boxAreaSqMeters
+                hectares: this.boxAreaHectares
             },
             grid: {
                 cellSize: this.gridCellSize
@@ -440,11 +441,16 @@ class TerrainGridSimulator {
             try {
                 const config = JSON.parse(e.target.result);
 
-                // Apply settings
-                if (config.version === '4.0') {
+                // Apply settings based on version
+                if (config.version === '5.0') {
                     this.boundaryBox = config.boundaryBox;
-                    this.boxAreaSqMeters = config.area.sqMeters;
-                    document.getElementById('boxArea').value = this.boxAreaSqMeters;
+                    this.boxAreaHectares = config.area.hectares;
+                    document.getElementById('boxArea').value = this.boxAreaHectares;
+                } else if (config.version === '4.0') {
+                    // Legacy support - convert from sq meters to hectares
+                    this.boundaryBox = config.boundaryBox;
+                    this.boxAreaHectares = config.area.sqMeters / 10000;
+                    document.getElementById('boxArea').value = this.boxAreaHectares;
                 }
 
                 // Apply grid settings
