@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terrain Grid Simulator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <h2>Terrain Grid Simulator</h2>
+
+            <!-- Import/Export Section -->
+            <div class="panel">
+                <h3>File Operations</h3>
+                <button id="importBtn" class="btn">Import Configuration</button>
+                <input type="file" id="importFile" accept=".json" style="display: none;">
+                <button id="exportBtn" class="btn">Export Configuration</button>
+            </div>
+
+            <!-- Area Setup -->
+            <div class="panel">
+                <h3>Area Setup</h3>
+                <label>Area Size: <span id="areaSizeDisplay">0.26 sq km</span></label>
+                <div class="input-group">
+                    <label>Latitude (Center):</label>
+                    <input type="number" id="centerLat" value="13.3671" step="0.0001">
+                </div>
+                <div class="input-group">
+                    <label>Longitude (Center):</label>
+                    <input type="number" id="centerLng" value="103.8448" step="0.0001">
+                </div>
+                <button id="applyArea" class="btn apply-btn">Apply Area</button>
+            </div>
+
+            <!-- Grid Configuration -->
+            <div class="panel">
+                <h3>Grid Configuration</h3>
+                <div class="input-group">
+                    <label>Grid Cell Size (meters):</label>
+                    <input type="number" id="gridSize" value="50" min="10" max="200">
+                </div>
+                <div class="info">
+                    <span id="gridInfo">Grid: 0 x 0 cells</span>
+                </div>
+                <button id="applyGrid" class="btn apply-btn">Apply Grid</button>
+            </div>
+
+            <!-- Terrain Features -->
+            <div class="panel">
+                <h3>Terrain Features</h3>
+                <div class="terrain-selector">
+                    <button class="terrain-btn" data-terrain="forest" style="background-color: #228B22;">
+                        Forest Land
+                    </button>
+                    <button class="terrain-btn" data-terrain="rocky" style="background-color: #808080;">
+                        Rocky
+                    </button>
+                    <button class="terrain-btn" data-terrain="water" style="background-color: #1E90FF;">
+                        Water
+                    </button>
+                    <button class="terrain-btn" data-terrain="uxo" style="background-color: #FF0000;">
+                        UXO
+                    </button>
+                    <button class="terrain-btn" data-terrain="road" style="background-color: #000000; color: white;">
+                        Road
+                    </button>
+                    <button class="terrain-btn" data-terrain="clear" style="background-color: #FFFFFF; border: 2px solid #333;">
+                        Clear
+                    </button>
+                </div>
+                <div class="info">
+                    Selected: <span id="selectedTerrain">None</span>
+                </div>
+                <label>
+                    <input type="checkbox" id="paintMode"> Paint Mode (Click cells to paint)
+                </label>
+            </div>
+
+            <!-- Statistics -->
+            <div class="panel">
+                <h3>Statistics</h3>
+                <div id="stats">
+                    <div>Total Cells: <span id="totalCells">0</span></div>
+                    <div>Forest: <span id="forestCount">0</span></div>
+                    <div>Rocky: <span id="rockyCount">0</span></div>
+                    <div>Water: <span id="waterCount">0</span></div>
+                    <div>UXO: <span id="uxoCount">0</span></div>
+                    <div>Road: <span id="roadCount">0</span></div>
+                    <div>Clear: <span id="clearCount">0</span></div>
+                </div>
+            </div>
+
+            <!-- Edit Controls -->
+            <div class="panel">
+                <h3>Edit Controls</h3>
+                <button id="clearAll" class="btn">Clear All Terrain</button>
+                <button id="resetGrid" class="btn">Reset Grid</button>
+            </div>
+        </div>
+
+        <!-- Map Container -->
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="map-info">
+                <div>Click on grid cells to paint terrain features</div>
+                <div>Selected Area: <span id="selectedAreaInfo">0.26 sq km</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY_HERE&callback=initMap">
+    </script>
+</body>
+</html>
