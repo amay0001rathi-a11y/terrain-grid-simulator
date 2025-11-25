@@ -20,29 +20,17 @@
                 <button id="exportBtn" class="btn">Export Configuration</button>
             </div>
 
-            <!-- Reference Image Overlay -->
+            <!-- Upload Base Image -->
             <div class="panel">
-                <h3>Reference Image Overlay</h3>
-                <button id="uploadReferenceBtn" class="btn">Upload Reference Image</button>
-                <input type="file" id="referenceImageFile" accept="image/*" style="display: none;">
-                <div id="referenceImageControls" style="display: none; margin-top: 10px;">
-                    <label>Image Opacity: <span id="opacityValue">50%</span></label>
-                    <input type="range" id="imageOpacity" min="0" max="100" value="50" style="width: 100%;">
-                    <button id="removeReferenceBtn" class="btn" style="margin-top: 5px;">Remove Image</button>
-                </div>
+                <h3>Upload Base Image</h3>
+                <button id="uploadImageBtn" class="btn">Upload Terrain/Map Image</button>
+                <input type="file" id="imageFile" accept="image/*" style="display: none;">
+                <div id="imageInfo" style="margin-top: 10px; font-size: 12px;"></div>
             </div>
 
             <!-- Area Setup -->
             <div class="panel">
                 <h3>Area Setup</h3>
-                <div class="input-group">
-                    <label>Latitude (Center):</label>
-                    <input type="number" id="centerLat" value="13.3671" step="0.0001">
-                </div>
-                <div class="input-group">
-                    <label>Longitude (Center):</label>
-                    <input type="number" id="centerLng" value="103.8448" step="0.0001">
-                </div>
                 <div class="input-group">
                     <label>Area Width (meters):</label>
                     <input type="number" id="areaWidth" value="500" min="50" step="50">
@@ -54,7 +42,6 @@
                 <div class="info">
                     <span id="areaSizeDisplay">Area: 0.25 sq km</span>
                 </div>
-                <button id="applyArea" class="btn apply-btn">Load Map & Apply Area</button>
             </div>
 
             <!-- Grid Configuration -->
@@ -123,19 +110,16 @@
             </div>
         </div>
 
-        <!-- Map Container -->
+        <!-- Image Container -->
         <div class="map-container">
-            <div id="map"></div>
+            <canvas id="mapCanvas"></canvas>
             <div class="map-info">
-                <div>Click on grid cells to paint terrain features</div>
-                <div>Selected Area: <span id="selectedAreaInfo">0.26 sq km</span></div>
+                <div>Upload an image, then click on grid cells to paint terrain features</div>
+                <div>Area: <span id="selectedAreaInfo">0.25 sq km</span></div>
             </div>
         </div>
     </div>
 
     <script src="app.js"></script>
-    <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY_HERE&callback=initMap">
-    </script>
 </body>
 </html>

@@ -1,17 +1,15 @@
-// Terrain Grid Simulator
+// Terrain Grid Simulator - Standalone Version (No Google Maps API Required)
 class TerrainGridSimulator {
     constructor() {
-        this.map = null;
-        this.areaRectangle = null;
+        this.canvas = document.getElementById('mapCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.baseImage = null;
         this.gridCells = [];
         this.gridData = new Map();
         this.selectedTerrain = null;
         this.paintMode = false;
-        this.referenceImageOverlay = null;
 
         // Default area parameters
-        this.centerLat = 13.3671; // Cambodia coordinates from image
-        this.centerLng = 103.8448;
         this.areaWidth = 500; // meters
         this.areaHeight = 500; // meters
         this.gridCellSize = 50; // meters (0.25 hectares = 50m x 50m)
@@ -27,6 +25,7 @@ class TerrainGridSimulator {
         };
 
         this.initEventListeners();
+        this.setupCanvas();
     }
 
     initEventListeners() {
@@ -43,26 +42,13 @@ class TerrainGridSimulator {
             this.exportConfiguration();
         });
 
-        // Reference image overlay
-        document.getElementById('uploadReferenceBtn').addEventListener('click', () => {
-            document.getElementById('referenceImageFile').click();
+        // Image upload
+        document.getElementById('uploadImageBtn').addEventListener('click', () => {
+            document.getElementById('imageFile').click();
         });
 
-        document.getElementById('referenceImageFile').addEventListener('change', (e) => {
-            this.uploadReferenceImage(e);
-        });
-
-        document.getElementById('imageOpacity').addEventListener('input', (e) => {
-            this.updateImageOpacity(e.target.value);
-        });
-
-        document.getElementById('removeReferenceBtn').addEventListener('click', () => {
-            this.removeReferenceImage();
-        });
-
-        // Area setup
-        document.getElementById('applyArea').addEventListener('click', () => {
-            this.applyAreaSettings();
+        document.getElementById('imageFile').addEventListener('change', (e) => {
+            this.loadImage(e);
         });
 
         // Grid configuration
@@ -90,108 +76,67 @@ class TerrainGridSimulator {
         document.getElementById('resetGrid').addEventListener('click', () => {
             this.resetGrid();
         });
-    }
 
-    initMap() {
-        if (!this.map) {
-            this.map = new google.maps.Map(document.getElementById('map'), {
-                center: { lat: this.centerLat, lng: this.centerLng },
-                zoom: 17,
-                mapTypeId: 'satellite',
-                tilt: 0
-            });
-        } else {
-            this.map.setCenter({ lat: this.centerLat, lng: this.centerLng });
-        }
-
-        this.drawArea();
-        this.createGrid();
-    }
-
-    drawArea() {
-        // Remove existing rectangle
-        if (this.areaRectangle) {
-            this.areaRectangle.setMap(null);
-        }
-
-        // Convert meters to degrees (approximate)
-        // 1 degree latitude ≈ 111,000 meters
-        // 1 degree longitude ≈ 111,000 * cos(latitude) meters
-        const latDegPerMeter = 1 / 111000;
-        const lngDegPerMeter = 1 / (111000 * Math.cos(this.centerLat * Math.PI / 180));
-
-        const halfWidth = (this.areaWidth / 2) * lngDegPerMeter;
-        const halfHeight = (this.areaHeight / 2) * latDegPerMeter;
-
-        const bounds = {
-            north: this.centerLat + halfHeight,
-            south: this.centerLat - halfHeight,
-            east: this.centerLng + halfWidth,
-            west: this.centerLng - halfWidth
-        };
-
-        this.areaRectangle = new google.maps.Rectangle({
-            bounds: bounds,
-            strokeColor: '#FF0000',
-            strokeOpacity: 0.8,
-            strokeWeight: 3,
-            fillColor: '#FF0000',
-            fillOpacity: 0.1,
-            map: this.map
+        // Canvas click handling
+        this.canvas.addEventListener('click', (e) => {
+            this.onCanvasClick(e);
         });
 
-        this.bounds = bounds;
+        // Window resize
+        window.addEventListener('resize', () => {
+            this.setupCanvas();
+            this.redraw();
+        });
+    }
 
-        // Update area display
-        const areaSqKm = (this.areaWidth * this.areaHeight) / 1000000;
-        document.getElementById('areaSizeDisplay').textContent = `Area: ${areaSqKm.toFixed(3)} sq km`;
+    setupCanvas() {
+        const container = this.canvas.parentElement;
+        this.canvas.width = container.clientWidth;
+        this.canvas.height = container.clientHeight;
+        this.updateAreaDisplay();
+    }
+
+    loadImage(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                this.baseImage = img;
+                document.getElementById('imageInfo').textContent =
+                    `Image loaded: ${img.width}x${img.height}px`;
+                this.redraw();
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+
+        event.target.value = '';
     }
 
     createGrid() {
-        // Clear existing grid
-        this.gridCells.forEach(cell => cell.setMap(null));
         this.gridCells = [];
 
-        if (!this.bounds) return;
-
-        // Calculate number of cells based on area and cell size
         const cellsWidth = Math.ceil(this.areaWidth / this.gridCellSize);
         const cellsHeight = Math.ceil(this.areaHeight / this.gridCellSize);
 
-        const latStep = (this.bounds.north - this.bounds.south) / cellsHeight;
-        const lngStep = (this.bounds.east - this.bounds.west) / cellsWidth;
+        const cellWidth = this.canvas.width / cellsWidth;
+        const cellHeight = this.canvas.height / cellsHeight;
 
-        // Create grid cells
         for (let i = 0; i < cellsHeight; i++) {
             for (let j = 0; j < cellsWidth; j++) {
-                const cellBounds = {
-                    north: this.bounds.south + (i + 1) * latStep,
-                    south: this.bounds.south + i * latStep,
-                    east: this.bounds.west + (j + 1) * lngStep,
-                    west: this.bounds.west + j * lngStep
-                };
-
                 const cellId = `${i}-${j}`;
-                const cellData = this.gridData.get(cellId) || { terrain: null };
-
-                const rectangle = new google.maps.Rectangle({
-                    bounds: cellBounds,
-                    strokeColor: '#FFFFFF',
-                    strokeOpacity: 0.5,
-                    strokeWeight: 1,
-                    fillColor: cellData.terrain ? this.terrainColors[cellData.terrain] : '#FFFFFF',
-                    fillOpacity: cellData.terrain ? 0.6 : 0.1,
-                    map: this.map,
-                    clickable: true
+                this.gridCells.push({
+                    id: cellId,
+                    x: j * cellWidth,
+                    y: i * cellHeight,
+                    width: cellWidth,
+                    height: cellHeight,
+                    row: i,
+                    col: j
                 });
-
-                rectangle.cellId = cellId;
-
-                rectangle.addListener('click', () => {
-                    this.onCellClick(rectangle, cellId);
-                });
-
-                this.gridCells.push(rectangle);
             }
         }
 
@@ -201,30 +146,79 @@ class TerrainGridSimulator {
         // Update grid info
         document.getElementById('gridInfo').textContent =
             `Grid: ${cellsWidth} x ${cellsHeight} cells (${cellsWidth * cellsHeight} total) - Each cell = ${hectaresPerCell.toFixed(2)} Ha`;
+
         this.updateStatistics();
     }
 
-    onCellClick(rectangle, cellId) {
-        if (this.paintMode && this.selectedTerrain) {
-            this.paintCell(rectangle, cellId, this.selectedTerrain);
+    redraw() {
+        // Clear canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Draw base image if loaded
+        if (this.baseImage) {
+            this.ctx.drawImage(this.baseImage, 0, 0, this.canvas.width, this.canvas.height);
+        } else {
+            // Draw background
+            this.ctx.fillStyle = '#f0f0f0';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+            // Draw "Upload Image" text
+            this.ctx.fillStyle = '#666';
+            this.ctx.font = '20px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('Click "Upload Terrain/Map Image" to begin',
+                this.canvas.width / 2, this.canvas.height / 2);
+        }
+
+        // Create and draw grid
+        this.createGrid();
+        this.drawGrid();
+    }
+
+    drawGrid() {
+        this.gridCells.forEach(cell => {
+            const cellData = this.gridData.get(cell.id);
+
+            // Draw terrain fill if exists
+            if (cellData && cellData.terrain) {
+                this.ctx.fillStyle = this.terrainColors[cellData.terrain];
+                this.ctx.globalAlpha = 0.6;
+                this.ctx.fillRect(cell.x, cell.y, cell.width, cell.height);
+                this.ctx.globalAlpha = 1.0;
+            }
+
+            // Draw grid lines
+            this.ctx.strokeStyle = '#FFFFFF';
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(cell.x, cell.y, cell.width, cell.height);
+        });
+    }
+
+    onCanvasClick(event) {
+        if (!this.paintMode || !this.selectedTerrain) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        // Find clicked cell
+        const cell = this.gridCells.find(c =>
+            x >= c.x && x <= c.x + c.width &&
+            y >= c.y && y <= c.y + c.height
+        );
+
+        if (cell) {
+            this.paintCell(cell.id, this.selectedTerrain);
         }
     }
 
-    paintCell(rectangle, cellId, terrain) {
+    paintCell(cellId, terrain) {
         if (terrain === 'clear') {
             this.gridData.delete(cellId);
-            rectangle.setOptions({
-                fillColor: '#FFFFFF',
-                fillOpacity: 0.1
-            });
         } else {
             this.gridData.set(cellId, { terrain: terrain });
-            rectangle.setOptions({
-                fillColor: this.terrainColors[terrain],
-                fillOpacity: 0.6
-            });
         }
-        this.updateStatistics();
+        this.redraw();
     }
 
     selectTerrain(terrain, button) {
@@ -241,99 +235,34 @@ class TerrainGridSimulator {
             terrain.charAt(0).toUpperCase() + terrain.slice(1);
     }
 
-    applyAreaSettings() {
-        this.centerLat = parseFloat(document.getElementById('centerLat').value);
-        this.centerLng = parseFloat(document.getElementById('centerLng').value);
-        this.areaWidth = parseFloat(document.getElementById('areaWidth').value);
-        this.areaHeight = parseFloat(document.getElementById('areaHeight').value);
-
-        if (!this.map) {
-            this.initMap();
-            alert('Map loaded! You can now upload a reference image to overlay.');
-        } else {
-            this.map.setCenter({ lat: this.centerLat, lng: this.centerLng });
-            this.drawArea();
-            this.createGrid();
-        }
-    }
-
     applyGridSettings() {
         this.gridCellSize = parseInt(document.getElementById('gridSize').value);
-        this.createGrid();
+        this.areaWidth = parseFloat(document.getElementById('areaWidth').value);
+        this.areaHeight = parseFloat(document.getElementById('areaHeight').value);
+        this.updateAreaDisplay();
+        this.redraw();
+    }
+
+    updateAreaDisplay() {
+        const areaSqKm = (this.areaWidth * this.areaHeight) / 1000000;
+        document.getElementById('areaSizeDisplay').textContent = `Area: ${areaSqKm.toFixed(3)} sq km`;
+        document.getElementById('selectedAreaInfo').textContent = `${areaSqKm.toFixed(3)} sq km`;
     }
 
     clearAllTerrain() {
         if (confirm('Clear all terrain data?')) {
             this.gridData.clear();
-            this.createGrid();
+            this.redraw();
         }
     }
 
     resetGrid() {
         if (confirm('Reset grid to default settings?')) {
-            document.getElementById('centerLat').value = 13.3671;
-            document.getElementById('centerLng').value = 103.8448;
             document.getElementById('areaWidth').value = 500;
             document.getElementById('areaHeight').value = 500;
             document.getElementById('gridSize').value = 50;
             this.gridData.clear();
-            this.applyAreaSettings();
-        }
-    }
-
-    uploadReferenceImage(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        if (!this.map) {
-            alert('Please load the map first by clicking "Load Map & Apply Area"');
-            event.target.value = '';
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            // Remove existing overlay
-            if (this.referenceImageOverlay) {
-                this.referenceImageOverlay.setMap(null);
-            }
-
-            // Create image overlay
-            this.referenceImageOverlay = new google.maps.GroundOverlay(
-                e.target.result,
-                this.bounds,
-                {
-                    opacity: 0.5,
-                    clickable: false
-                }
-            );
-
-            this.referenceImageOverlay.setMap(this.map);
-
-            // Show controls
-            document.getElementById('referenceImageControls').style.display = 'block';
-
-            alert('Reference image loaded! Use the opacity slider to adjust visibility. You can now paint terrain on the grid.');
-        };
-        reader.readAsDataURL(file);
-
-        // Reset file input
-        event.target.value = '';
-    }
-
-    updateImageOpacity(value) {
-        document.getElementById('opacityValue').textContent = value + '%';
-        if (this.referenceImageOverlay) {
-            this.referenceImageOverlay.setOpacity(value / 100);
-        }
-    }
-
-    removeReferenceImage() {
-        if (this.referenceImageOverlay) {
-            this.referenceImageOverlay.setMap(null);
-            this.referenceImageOverlay = null;
-            document.getElementById('referenceImageControls').style.display = 'none';
-            alert('Reference image removed.');
+            this.applyGridSettings();
         }
     }
 
@@ -367,11 +296,9 @@ class TerrainGridSimulator {
 
     exportConfiguration() {
         const config = {
-            version: '2.0',
+            version: '3.0',
             timestamp: new Date().toISOString(),
             area: {
-                centerLat: this.centerLat,
-                centerLng: this.centerLng,
                 width: this.areaWidth,
                 height: this.areaHeight
             },
@@ -403,13 +330,10 @@ class TerrainGridSimulator {
             try {
                 const config = JSON.parse(e.target.result);
 
-                // Apply area settings (support both v1 and v2 formats)
-                this.centerLat = config.area.centerLat;
-                this.centerLng = config.area.centerLng;
-
-                if (config.version === '2.0') {
-                    this.areaWidth = config.area.width;
-                    this.areaHeight = config.area.height;
+                // Apply area settings
+                if (config.version === '3.0' || config.version === '2.0') {
+                    this.areaWidth = config.area.width || config.area.width;
+                    this.areaHeight = config.area.height || config.area.height;
                 } else {
                     // Legacy v1.0 format
                     const sideLengthMeters = Math.sqrt(config.area.sizeKm * 1000000);
@@ -417,8 +341,6 @@ class TerrainGridSimulator {
                     this.areaHeight = sideLengthMeters;
                 }
 
-                document.getElementById('centerLat').value = this.centerLat;
-                document.getElementById('centerLng').value = this.centerLng;
                 document.getElementById('areaWidth').value = this.areaWidth;
                 document.getElementById('areaHeight').value = this.areaHeight;
 
@@ -435,7 +357,7 @@ class TerrainGridSimulator {
                 });
 
                 // Redraw
-                this.applyAreaSettings();
+                this.applyGridSettings();
 
                 alert('Configuration imported successfully!');
             } catch (error) {
@@ -449,11 +371,8 @@ class TerrainGridSimulator {
     }
 }
 
-// Global variable for the simulator
+// Initialize the simulator when page loads
 let simulator;
-
-// Initialize the map
-function initMap() {
+document.addEventListener('DOMContentLoaded', () => {
     simulator = new TerrainGridSimulator();
-    simulator.initMap();
-}
+});
