@@ -1,4 +1,4 @@
-// Terrain Grid Simulator - Standalone Version (No Google Maps API Required)
+// Terrain Grid Simulator - Standalone Version with Boundary Box
 class TerrainGridSimulator {
     constructor() {
         this.canvas = document.getElementById('mapCanvas');
@@ -9,9 +9,13 @@ class TerrainGridSimulator {
         this.selectedTerrain = null;
         this.paintMode = false;
 
-        // Default area parameters
-        this.areaWidth = 500; // meters
-        this.areaHeight = 500; // meters
+        // Boundary box
+        this.boundaryBox = null; // {x, y, width, height} in canvas coordinates
+        this.drawingBoundary = false;
+        this.boundaryStart = null;
+
+        // Area parameters
+        this.boxAreaSqMeters = 250000; // Default 0.25 sq km
         this.gridCellSize = 50; // meters (0.25 hectares = 50m x 50m)
 
         // Terrain colors
@@ -51,6 +55,15 @@ class TerrainGridSimulator {
             this.loadImage(e);
         });
 
+        // Boundary box drawing
+        document.getElementById('drawBoundaryBtn').addEventListener('click', () => {
+            this.enableBoundaryDrawing();
+        });
+
+        document.getElementById('applyArea').addEventListener('click', () => {
+            this.applyAreaSettings();
+        });
+
         // Grid configuration
         document.getElementById('applyGrid').addEventListener('click', () => {
             this.applyGridSettings();
@@ -77,10 +90,10 @@ class TerrainGridSimulator {
             this.resetGrid();
         });
 
-        // Canvas click handling
-        this.canvas.addEventListener('click', (e) => {
-            this.onCanvasClick(e);
-        });
+        // Canvas interactions
+        this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+        this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+        this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
 
         // Window resize
         window.addEventListener('resize', () => {
@@ -107,6 +120,7 @@ class TerrainGridSimulator {
                 this.baseImage = img;
                 document.getElementById('imageInfo').textContent =
                     `Image loaded: ${img.width}x${img.height}px`;
+                this.boundaryBox = null; // Reset boundary when new image loaded
                 this.redraw();
             };
             img.src = e.target.result;
@@ -116,22 +130,107 @@ class TerrainGridSimulator {
         event.target.value = '';
     }
 
+    enableBoundaryDrawing() {
+        if (!this.baseImage) {
+            alert('Please upload an image first!');
+            return;
+        }
+        this.drawingBoundary = true;
+        this.canvas.style.cursor = 'crosshair';
+        alert('Click and drag to draw a boundary box on the image');
+    }
+
+    onMouseDown(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        if (this.drawingBoundary) {
+            this.boundaryStart = { x, y };
+        } else if (this.paintMode && this.selectedTerrain && this.boundaryBox) {
+            // Paint cell
+            this.onCanvasClick(x, y);
+        }
+    }
+
+    onMouseMove(e) {
+        if (!this.drawingBoundary || !this.boundaryStart) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Draw temporary boundary
+        this.redraw();
+        this.ctx.strokeStyle = '#FF0000';
+        this.ctx.lineWidth = 3;
+        this.ctx.strokeRect(
+            this.boundaryStart.x,
+            this.boundaryStart.y,
+            x - this.boundaryStart.x,
+            y - this.boundaryStart.y
+        );
+    }
+
+    onMouseUp(e) {
+        if (!this.drawingBoundary || !this.boundaryStart) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const width = Math.abs(x - this.boundaryStart.x);
+        const height = Math.abs(y - this.boundaryStart.y);
+
+        if (width > 10 && height > 10) {
+            this.boundaryBox = {
+                x: Math.min(this.boundaryStart.x, x),
+                y: Math.min(this.boundaryStart.y, y),
+                width: width,
+                height: height
+            };
+
+            document.getElementById('boundaryInfo').textContent =
+                `Box drawn: ${Math.round(width)}x${Math.round(height)}px`;
+        }
+
+        this.drawingBoundary = false;
+        this.boundaryStart = null;
+        this.canvas.style.cursor = 'default';
+        this.redraw();
+    }
+
+    applyAreaSettings() {
+        const boxArea = parseFloat(document.getElementById('boxArea').value);
+        this.boxAreaSqMeters = boxArea;
+        this.updateAreaDisplay();
+        this.redraw();
+    }
+
     createGrid() {
         this.gridCells = [];
 
-        const cellsWidth = Math.ceil(this.areaWidth / this.gridCellSize);
-        const cellsHeight = Math.ceil(this.areaHeight / this.gridCellSize);
+        if (!this.boundaryBox) return;
 
-        const cellWidth = this.canvas.width / cellsWidth;
-        const cellHeight = this.canvas.height / cellsHeight;
+        // Calculate number of cells based on area and cell size
+        const cellAreaSqMeters = this.gridCellSize * this.gridCellSize; // 2500 m² for 50m cells
+        const totalCells = Math.ceil(this.boxAreaSqMeters / cellAreaSqMeters);
+
+        // Try to make grid as square as possible
+        const aspectRatio = this.boundaryBox.width / this.boundaryBox.height;
+        const cellsHeight = Math.ceil(Math.sqrt(totalCells / aspectRatio));
+        const cellsWidth = Math.ceil(totalCells / cellsHeight);
+
+        const cellWidth = this.boundaryBox.width / cellsWidth;
+        const cellHeight = this.boundaryBox.height / cellsHeight;
 
         for (let i = 0; i < cellsHeight; i++) {
             for (let j = 0; j < cellsWidth; j++) {
                 const cellId = `${i}-${j}`;
                 this.gridCells.push({
                     id: cellId,
-                    x: j * cellWidth,
-                    y: i * cellHeight,
+                    x: this.boundaryBox.x + j * cellWidth,
+                    y: this.boundaryBox.y + i * cellHeight,
                     width: cellWidth,
                     height: cellHeight,
                     row: i,
@@ -168,11 +267,24 @@ class TerrainGridSimulator {
             this.ctx.textAlign = 'center';
             this.ctx.fillText('Click "Upload Terrain/Map Image" to begin',
                 this.canvas.width / 2, this.canvas.height / 2);
+            return;
         }
 
-        // Create and draw grid
-        this.createGrid();
-        this.drawGrid();
+        // Draw boundary box if exists
+        if (this.boundaryBox) {
+            this.ctx.strokeStyle = '#FF0000';
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(
+                this.boundaryBox.x,
+                this.boundaryBox.y,
+                this.boundaryBox.width,
+                this.boundaryBox.height
+            );
+
+            // Create and draw grid inside boundary
+            this.createGrid();
+            this.drawGrid();
+        }
     }
 
     drawGrid() {
@@ -194,12 +306,8 @@ class TerrainGridSimulator {
         });
     }
 
-    onCanvasClick(event) {
+    onCanvasClick(x, y) {
         if (!this.paintMode || !this.selectedTerrain) return;
-
-        const rect = this.canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
 
         // Find clicked cell
         const cell = this.gridCells.find(c =>
@@ -237,16 +345,16 @@ class TerrainGridSimulator {
 
     applyGridSettings() {
         this.gridCellSize = parseInt(document.getElementById('gridSize').value);
-        this.areaWidth = parseFloat(document.getElementById('areaWidth').value);
-        this.areaHeight = parseFloat(document.getElementById('areaHeight').value);
-        this.updateAreaDisplay();
         this.redraw();
     }
 
     updateAreaDisplay() {
-        const areaSqKm = (this.areaWidth * this.areaHeight) / 1000000;
-        document.getElementById('areaSizeDisplay').textContent = `Area: ${areaSqKm.toFixed(3)} sq km`;
-        document.getElementById('selectedAreaInfo').textContent = `${areaSqKm.toFixed(3)} sq km`;
+        const areaSqKm = this.boxAreaSqMeters / 1000000;
+        const areaHectares = this.boxAreaSqMeters / 10000;
+        document.getElementById('areaSizeDisplay').textContent =
+            `Area: ${areaSqKm.toFixed(3)} sq km (${areaHectares.toFixed(2)} Ha)`;
+        document.getElementById('selectedAreaInfo').textContent =
+            `${areaSqKm.toFixed(3)} sq km`;
     }
 
     clearAllTerrain() {
@@ -257,12 +365,14 @@ class TerrainGridSimulator {
     }
 
     resetGrid() {
-        if (confirm('Reset grid to default settings?')) {
-            document.getElementById('areaWidth').value = 500;
-            document.getElementById('areaHeight').value = 500;
+        if (confirm('Reset everything?')) {
+            document.getElementById('boxArea').value = 250000;
             document.getElementById('gridSize').value = 50;
             this.gridData.clear();
-            this.applyGridSettings();
+            this.boundaryBox = null;
+            this.boxAreaSqMeters = 250000;
+            this.gridCellSize = 50;
+            this.redraw();
         }
     }
 
@@ -296,11 +406,11 @@ class TerrainGridSimulator {
 
     exportConfiguration() {
         const config = {
-            version: '3.0',
+            version: '4.0',
             timestamp: new Date().toISOString(),
+            boundaryBox: this.boundaryBox,
             area: {
-                width: this.areaWidth,
-                height: this.areaHeight
+                sqMeters: this.boxAreaSqMeters
             },
             grid: {
                 cellSize: this.gridCellSize
@@ -330,19 +440,12 @@ class TerrainGridSimulator {
             try {
                 const config = JSON.parse(e.target.result);
 
-                // Apply area settings
-                if (config.version === '3.0' || config.version === '2.0') {
-                    this.areaWidth = config.area.width || config.area.width;
-                    this.areaHeight = config.area.height || config.area.height;
-                } else {
-                    // Legacy v1.0 format
-                    const sideLengthMeters = Math.sqrt(config.area.sizeKm * 1000000);
-                    this.areaWidth = sideLengthMeters;
-                    this.areaHeight = sideLengthMeters;
+                // Apply settings
+                if (config.version === '4.0') {
+                    this.boundaryBox = config.boundaryBox;
+                    this.boxAreaSqMeters = config.area.sqMeters;
+                    document.getElementById('boxArea').value = this.boxAreaSqMeters;
                 }
-
-                document.getElementById('areaWidth').value = this.areaWidth;
-                document.getElementById('areaHeight').value = this.areaHeight;
 
                 // Apply grid settings
                 this.gridCellSize = config.grid.cellSize;
@@ -357,7 +460,7 @@ class TerrainGridSimulator {
                 });
 
                 // Redraw
-                this.applyGridSettings();
+                this.redraw();
 
                 alert('Configuration imported successfully!');
             } catch (error) {

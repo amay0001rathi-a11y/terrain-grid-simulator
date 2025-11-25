@@ -28,20 +28,27 @@
                 <div id="imageInfo" style="margin-top: 10px; font-size: 12px;"></div>
             </div>
 
+            <!-- Boundary Box Setup -->
+            <div class="panel">
+                <h3>Define Boundary Box</h3>
+                <button id="drawBoundaryBtn" class="btn">Draw Boundary Box</button>
+                <div class="info" style="margin-top: 10px;">
+                    <small>Click and drag on the image to draw a red boundary box</small>
+                </div>
+                <div id="boundaryInfo" style="margin-top: 10px; font-size: 12px;"></div>
+            </div>
+
             <!-- Area Setup -->
             <div class="panel">
-                <h3>Area Setup</h3>
+                <h3>Box Area (Real World)</h3>
                 <div class="input-group">
-                    <label>Area Width (meters):</label>
-                    <input type="number" id="areaWidth" value="500" min="50" step="50">
-                </div>
-                <div class="input-group">
-                    <label>Area Height (meters):</label>
-                    <input type="number" id="areaHeight" value="500" min="50" step="50">
+                    <label>Box Area (sq meters):</label>
+                    <input type="number" id="boxArea" value="250000" min="1000" step="1000">
                 </div>
                 <div class="info">
-                    <span id="areaSizeDisplay">Area: 0.25 sq km</span>
+                    <span id="areaSizeDisplay">Area: 0.25 sq km (250,000 m²)</span>
                 </div>
+                <button id="applyArea" class="btn apply-btn">Apply Area</button>
             </div>
 
             <!-- Grid Configuration -->
