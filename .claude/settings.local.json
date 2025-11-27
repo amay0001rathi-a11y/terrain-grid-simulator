@@ -5,7 +5,9 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(git remote remove:*)",
-      "Bash(git remote add:*)"
+      "Bash(git remote add:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx http-server:*)"
     ],
     "deny": [],
     "ask": []

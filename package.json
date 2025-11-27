@@ -1,11 +1,11 @@
 {
   "name": "terrain-grid-simulator",
   "version": "3.0.0",
-  "description": "Terrain Grid Simulator - Standalone image-based grid mapping tool",
-  "main": "index.html",
+  "description": "Terrain Grid Simulator - Node.js image-based grid mapping tool",
+  "main": "server.js",
   "scripts": {
-    "dev": "npx http-server -p 8000 -o",
-    "start": "npx http-server -p 8000"
+    "dev": "nodemon server.js",
+    "start": "node server.js"
   },
   "repository": {
     "type": "git",
@@ -15,8 +15,16 @@
     "terrain",
     "grid",
     "simulator",
-    "mapping"
+    "mapping",
+    "nodejs",
+    "express"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
 }
