@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terrain Map Pixelator</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: #2a2a2a;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .main-content {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #4CAF50;
+        }
+
+        .panel {
+            background: #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .panel h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #4CAF50;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 5px;
+        }
+
+        .input-group {
+            margin-bottom: 12px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 8px;
+            background: #444;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            background: #555;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #666;
+        }
+
+        .btn.primary {
+            background: #4CAF50;
+        }
+
+        .btn.primary:hover {
+            background: #45a049;
+        }
+
+        .info-box {
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #4CAF50;
+        }
+
+        .year-slider-container {
+            margin-top: 15px;
+            padding: 15px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+
+        .year-display {
+            font-size: 20px;
+            color: #4CAF50;
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .timeline-marks {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #888;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>🗺️ Map Pixelator</h1>
+
+            <!-- Location Input -->
+            <div class="panel">
+                <h3>Location</h3>
+                <div class="input-group">
+                    <label>Search Location:</label>
+                    <input type="text" id="locationSearch" placeholder="e.g., Ithaca, NY">
+                </div>
+                <button class="btn primary" id="searchBtn">Search Location</button>
+                <div class="input-group" style="margin-top: 12px;">
+                    <label>Or Enter Coordinates:</label>
+                    <input type="number" id="latitude" placeholder="Latitude" step="0.000001" value="42.4440">
+                    <input type="number" id="longitude" placeholder="Longitude" step="0.000001" value="-76.5019" style="margin-top: 5px;">
+                </div>
+                <button class="btn" id="goToCoords">Go to Coordinates</button>
+            </div>
+
+            <!-- Year Timeline -->
+            <div class="panel">
+                <h3>Historical Timeline</h3>
+                <div class="year-slider-container">
+                    <div class="year-display" id="yearDisplay">2024</div>
+                    <input type="range" id="yearSlider" min="1984" max="2024" value="2024" step="1">
+                    <div class="timeline-marks">
+                        <span>1984</span>
+                        <span>2000</span>
+                        <span>2010</span>
+                        <span>2024</span>
+                    </div>
+                </div>
+                <div class="info-box" id="yearInfo">Showing current satellite imagery</div>
+            </div>
+
+            <!-- Boundary & Grid -->
+            <div class="panel">
+                <h3>Survey Area & Grid</h3>
+                <button class="btn primary" id="drawBoundaryBtn">Draw Survey Area</button>
+                <div class="input-group" style="margin-top: 12px;">
+                    <label>Area Size (Hectares):</label>
+                    <input type="number" id="areaSize" min="1" max="1000" value="25" step="1">
+                    <small style="color: #888; display: block; margin-top: 5px;" id="areaSizeDisplay">25 Ha (0.25 sq km)</small>
+                </div>
+                <div class="input-group">
+                    <label>Grid Cell Size (meters):</label>
+                    <input type="number" id="gridCellSize" min="10" max="200" value="50" step="10">
+                </div>
+                <button class="btn" id="applyGridBtn">Apply Grid</button>
+            </div>
+
+            <!-- Pixelation Settings -->
+            <div class="panel">
+                <h3>Pixelation</h3>
+                <div class="input-group">
+                    <label>Pixel Size: <span id="pixelSizeValue">20</span> px</label>
+                    <input type="range" id="pixelSize" min="5" max="100" value="20" step="1">
+                </div>
+                <button class="btn primary" id="pixelateBtn">Pixelate Area</button>
+                <button class="btn" id="resetBtn">Reset View</button>
+                <div class="info-box" id="pixelInfo">Draw an area to start</div>
+            </div>
+
+            <!-- Export -->
+            <div class="panel">
+                <h3>Export</h3>
+                <button class="btn" id="exportImageBtn">Export as PNG</button>
+                <button class="btn" id="exportDataBtn">Export Grid Data</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
+    <!-- html2canvas for capturing map -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Main App -->
+    <script src="map-pixelator.js"></script>
+</body>
+</html>

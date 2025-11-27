@@ -9,10 +9,14 @@ app.use(express.static(path.join(__dirname)));
 
 // Serve the main HTML file
 app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'map-pixelator.html'));
+});
+
+// Old versions for reference
+app.get('/old', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Serve the drone simulator
 app.get('/drone', (req, res) => {
     res.sendFile(path.join(__dirname, 'drone-simulator.html'));
 });
