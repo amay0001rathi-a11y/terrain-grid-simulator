@@ -1,93 +1,154 @@
-# Terrain Grid Simulator
+# Terrain Grid Simulator with Auto-Pixelation
 
-A web-based terrain analysis tool that allows you to create grid overlays on satellite imagery and mark different terrain features for analysis and planning.
+A web-based terrain analysis tool that allows you to create grid overlays on satellite imagery, automatically analyze terrain types using image processing, and mark different terrain features for analysis and planning.
 
 ## Features
 
-- **Google Maps Integration**: View satellite imagery of any location
+### 🎨 Auto-Pixelation (NEW!)
+Automatically analyze satellite/aerial images to detect and classify terrain types:
+- **🌲 Forest Areas** - Detected by green color dominance
+- **💧 Water Bodies** - Detected by blue color dominance
+- **🪨 Rocky Terrain** - Detected by gray/low saturation colors
+- **💣 UXO/Craters** - Detected by white bomb crater markers
+- **☢️ Contaminated Areas** - Automatically marked in 1km radius around craters
+- **🛣️ Roads** - Detected by dark/black areas
+- **✅ Cleared Land** - Default for unclassified areas
+
+### Manual Features
+- **Upload Images**: Upload your own satellite/aerial terrain images
+- **Boundary Box Drawing**: Define custom analysis areas
 - **Customizable Grid System**: Define grid cell sizes (10-200 meters)
-- **Terrain Feature Painting**: Mark cells with different terrain types:
-  - Forest Land
-  - Rocky
-  - Water
-  - UXO (Unexploded Ordnance)
-  - Road
-  - Clear
+- **Manual Terrain Painting**: Override auto-detection by painting cells manually
 - **Paint Mode**: Click and paint multiple cells quickly
 - **Statistics**: Real-time counts of each terrain type
 - **Import/Export**: Save and load configurations as JSON files
-- **Edit Controls**: Clear terrain data or reset grid
-- **Apply Buttons**: All panels have apply buttons for controlled updates
-
-## Default Test Area
-
-The simulator is pre-configured to test on a 0.26 sq km area in Cambodia (coordinates from provided satellite image).
 
 ## Setup Instructions
 
-### 1. Get a Google Maps API Key
+### Run the Application
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select an existing one
-3. Enable the Maps JavaScript API
-4. Create credentials (API Key)
-5. Copy your API key
-
-### 2. Configure the Application
-
-Open [index.html](index.html) and replace `YOUR_API_KEY_HERE` with your actual Google Maps API key:
-
-```html
-<script async defer
-    src="https://maps.googleapis.com/maps/api/js?key=YOUR_ACTUAL_API_KEY&callback=initMap">
-</script>
-```
-
-### 3. Run the Application
-
-Simply open `index.html` in a web browser. For best results, use a local server:
+Start a local server:
 
 ```bash
-# Using Python 3
-python -m http.server 8000
+# Using npm (recommended)
+npm run dev
 
-# Using Node.js with http-server
-npx http-server
+# Or using npx directly
+npx http-server -p 8000
 ```
 
 Then navigate to `http://localhost:8000`
 
 ## How to Use
 
-### Setting Up the Area
+### 1. Upload Your Image
+1. Click **"Upload Terrain/Map Image"**
+2. Select your satellite/aerial image (PNG, JPG, etc.)
+3. The image will be displayed on the canvas
 
-1. Enter the center latitude and longitude in the "Area Setup" panel
-2. Click "Apply Area" to update the map
-3. The red rectangle shows your analysis area (default: 0.26 sq km)
+### 2. Define the Analysis Area
+1. Click **"Draw Boundary Box"**
+2. Click and drag on the image to create a red boundary box
+3. This box defines the area to be analyzed
 
-### Creating the Grid
+### 3. Configure Area & Grid
+- **Box Area (Hectares)**: Set the real-world area size (default: 25 Ha = 0.25 sq km)
+- **Grid Cell Size (meters)**: Set cell size in meters (default: 50m)
+- The grid automatically updates based on these settings
 
-1. Set your desired grid cell size in meters (10-200m)
-2. Click "Apply Grid" to generate the grid
-3. The grid info shows how many cells were created
+### 4. Auto-Pixelate the Image ✨
+1. Click **"🎨 Auto-Analyze Terrain"** button
+2. The system will automatically:
+   - Analyze each grid cell's color composition
+   - Detect white bomb craters (UXO)
+   - Classify terrain types based on color
+   - Mark contaminated zones (1km radius around craters)
+3. Progress will be shown during analysis
+4. View results in the Statistics panel
 
-### Painting Terrain Features
-
-1. Select a terrain type by clicking one of the colored buttons
-2. Enable "Paint Mode" checkbox
-3. Click on grid cells to paint them with the selected terrain
+### 5. Manual Adjustments (Optional)
+1. Select a terrain type from the Terrain Features panel
+2. Enable **"Paint Mode"** checkbox
+3. Click on individual cells to manually override the auto-classification
 4. Use "Clear" to remove terrain from cells
 
-### Import/Export
+### View Statistics
 
-- **Export**: Click "Export Configuration" to save your current setup as a JSON file
-- **Import**: Click "Import Configuration" to load a previously saved configuration
-
-### Statistics
-
-The statistics panel shows real-time counts of:
+The Statistics panel shows real-time counts of:
 - Total grid cells
-- Number of cells for each terrain type
+- 🌲 Forest areas
+- 💧 Water bodies
+- 🪨 Rocky terrain
+- 💣 UXO/Craters
+- ☢️ Contaminated areas (within 1km of craters)
+- 🛣️ Roads
+- ✅ Clear/unclassified land
+
+## Terrain Detection Logic
+
+The algorithm uses **advanced pixel distribution analysis** to classify terrain more accurately.
+
+### Forest Detection
+Uses pixel-level distribution analysis for better accuracy:
+- **Primary**: >35% greenish pixels (G > R + 5) AND average brightness < 100
+- **Alternative**: Green dominant average (G > R + 8, G >= B - 5) with brightness < 110
+- **Why**: Satellite forests appear as dark green/blue-green masses
+- **Example**: Dense vegetation, tree cover, forested areas
+
+### Water Detection
+Multi-criteria detection for various water appearances:
+- **Primary**: >40% blue-tinted pixels (B > R + 10 AND B > G + 5)
+- **Alternative**: Blue dominant average (B > R + 15, B > G + 10, B > 70)
+- **Why**: Water can appear as dark spots or bright blue depending on depth/lighting
+- **Example**: Rivers, lakes, ponds, flooded areas, water bodies
+
+### Rocky Terrain Detection
+- Low saturation (max color diff < 30)
+- Medium brightness range: 100-150
+- **Why**: Rocky areas have minimal color variation (grayish)
+- **Example**: Rocky outcrops, bare soil, exposed ground
+
+### UXO/Crater Detection (Improved)
+Enhanced crater detection with water filtering:
+- White/bright pixels: `R > 200`, `G > 200`, `B > 200`, and balanced (not blue-shifted)
+- >30% white pixels AND <20% blue pixels (to exclude water)
+- **Why**: Bomb craters appear white but water can also be bright - need to distinguish
+- **Example**: Bomb craters, white circular markers, explosion sites
+
+### Contaminated Area Detection
+- Calculated radius: 1000m / grid cell size
+- All cells within radius of crater marked as contaminated
+- Preserves crater cells as UXO (not overwritten)
+- **Purpose**: Mark hazardous zones around detected explosives
+- **Note**: Uses Euclidean distance for accurate radius calculation
+
+### Road Detection
+- Very low brightness (<45) with >60% dark pixels
+- **Why**: Roads appear as very dark/black lines in satellite imagery
+- **Example**: Paved roads, dark paths, tracks
+
+## Color Coding
+
+| Terrain Type | Color | Hex Code | Visual |
+|-------------|-------|----------|--------|
+| Forest | Green | #228B22 | 🌲 |
+| Water | Blue | #1E90FF | 💧 |
+| Rocky | Gray | #808080 | 🪨 |
+| UXO/Crater | Red | #FF0000 | 💣 |
+| Contaminated | Brown | #8B4513 | ☢️ |
+| Road | Black | #000000 | 🛣️ |
+| Clear | White | #FFFFFF | ✅ |
+
+## Tips for Best Results
+
+1. **Image Quality**: Use high-resolution satellite/aerial images for better detection accuracy
+2. **Boundary Box**: Draw tight boundaries around the area of interest
+3. **Grid Size**:
+   - Smaller cells (10-30m) = More detail, slower analysis
+   - Larger cells (50-100m) = Faster analysis, less detail
+4. **Manual Override**: Use paint mode to correct any misclassified cells
+5. **Crater Detection**: Works best with clear white/light colored crater markers
+6. **Lighting**: Images with consistent lighting produce better results
 
 ## File Format
 
