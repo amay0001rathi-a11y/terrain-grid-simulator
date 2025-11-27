@@ -1,6 +1,8 @@
 // Map Terrain Pixelator - Clean Version
 class MapPixelator {
     constructor() {
+        console.log('MapPixelator initializing...');
+
         // Map
         this.map = null;
         this.currentYear = 2024;
@@ -18,8 +20,14 @@ class MapPixelator {
         this.pixelSize = 20;
         this.pixelatedLayer = null;
 
-        this.initMap();
-        this.initEventListeners();
+        try {
+            this.initMap();
+            this.initEventListeners();
+            console.log('MapPixelator initialized successfully');
+        } catch (error) {
+            console.error('Error initializing MapPixelator:', error);
+            alert('Error loading map. Please check console for details.');
+        }
     }
 
     initMap() {
