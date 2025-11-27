@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone Terrain Mapping Simulator</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: #2a2a2a;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .canvas-overlay {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #4CAF50;
+        }
+
+        .panel {
+            background: #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .panel h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #4CAF50;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 5px;
+        }
+
+        .input-group {
+            margin-bottom: 12px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 8px;
+            background: #444;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin-right: 10px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            background: #555;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #666;
+        }
+
+        .btn.primary {
+            background: #4CAF50;
+        }
+
+        .btn.primary:hover {
+            background: #45a049;
+        }
+
+        .btn.danger {
+            background: #f44336;
+        }
+
+        .btn.danger:hover {
+            background: #da190b;
+        }
+
+        .info-box {
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #4CAF50;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-idle {
+            background: #888;
+        }
+
+        .status-flying {
+            background: #4CAF50;
+            animation: pulse 1s infinite;
+        }
+
+        .status-complete {
+            background: #2196F3;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #444;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #555;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #4CAF50;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .drone-icon {
+            font-size: 24px;
+            text-align: center;
+            line-height: 30px;
+            background: transparent;
+            border: none;
+            animation: drone-hover 2s ease-in-out infinite;
+        }
+
+        @keyframes drone-hover {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .leaflet-tooltip {
+            background-color: rgba(0, 0, 0, 0.8);
+            border: none;
+            color: #4CAF50;
+            font-size: 11px;
+            padding: 4px 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>🚁 Drone Mapper</h1>
+
+            <!-- Location Input -->
+            <div class="panel">
+                <h3>Location</h3>
+                <div class="input-group">
+                    <label>Search Location:</label>
+                    <input type="text" id="locationSearch" placeholder="e.g., Ithaca, NY">
+                </div>
+                <button class="btn primary" id="searchBtn">Search & Load Map</button>
+                <div class="input-group" style="margin-top: 12px;">
+                    <label>Or Enter Coordinates:</label>
+                    <input type="number" id="latitude" placeholder="Latitude" step="0.000001" value="42.4440">
+                    <input type="number" id="longitude" placeholder="Longitude" step="0.000001" value="-76.5019" style="margin-top: 5px;">
+                </div>
+                <button class="btn" id="goToCoords">Go to Coordinates</button>
+            </div>
+
+            <!-- Boundary & Grid -->
+            <div class="panel">
+                <h3>Boundary & Grid</h3>
+                <button class="btn primary" id="drawBoundaryBtn">Draw Survey Area</button>
+                <div class="input-group" style="margin-top: 12px;">
+                    <label>Area Size (Hectares):</label>
+                    <input type="number" id="areaSize" min="1" max="1000" value="25" step="1">
+                    <small style="color: #888; display: block; margin-top: 5px;" id="areaSizeDisplay">25 Ha (0.25 sq km)</small>
+                </div>
+                <div class="input-group">
+                    <label>Grid Cell Size (meters):</label>
+                    <input type="number" id="gridCellSize" min="10" max="200" value="50" step="10">
+                </div>
+                <button class="btn" id="applyGridBtn">Apply Grid</button>
+            </div>
+
+            <!-- Drone Settings -->
+            <div class="panel">
+                <h3>Drone Configuration</h3>
+                <div class="input-group">
+                    <label>Drone Model:</label>
+                    <select id="droneModel">
+                        <option value="default">DJI Mavic (Default)</option>
+                        <option value="custom">Upload Custom GLB</option>
+                    </select>
+                </div>
+                <input type="file" id="droneFile" accept=".glb,.gltf" style="display: none;">
+                <div class="input-group">
+                    <label>Flight Speed: <span id="speedValue">5</span> m/s</label>
+                    <input type="range" id="flightSpeed" min="1" max="20" value="5" step="0.5">
+                </div>
+                <div class="input-group">
+                    <label>Flight Altitude: <span id="altitudeValue">50</span> m</label>
+                    <input type="range" id="flightAltitude" min="10" max="200" value="50" step="10">
+                </div>
+                <div class="input-group">
+                    <label>Scan Pattern:</label>
+                    <select id="scanPattern">
+                        <option value="parallel">Parallel Lines</option>
+                        <option value="grid">Grid Pattern</option>
+                        <option value="spiral">Spiral</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Simulation Control -->
+            <div class="panel">
+                <h3>Simulation</h3>
+                <div class="toggle-switch">
+                    <label>Progressive Pixelation:</label>
+                    <label class="switch">
+                        <input type="checkbox" id="progressivePixelation" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="input-group" style="margin-top: 12px;">
+                    <label>Pixel Size: <span id="pixelSizeValue">20</span> px</label>
+                    <input type="range" id="pixelSize" min="5" max="100" value="20" step="1">
+                </div>
+                <button class="btn primary" id="startSimulationBtn">▶ Start Mapping</button>
+                <button class="btn danger" id="stopSimulationBtn" style="display: none;">⏹ Stop Simulation</button>
+                <button class="btn" id="resetSimulationBtn">Reset</button>
+
+                <div class="info-box">
+                    <div>
+                        <span class="status-indicator status-idle" id="statusIndicator"></span>
+                        <span id="statusText">Ready to start</span>
+                    </div>
+                    <div style="margin-top: 8px;">Progress: <span id="progressText">0%</span></div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressBar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export -->
+            <div class="panel">
+                <h3>Export</h3>
+                <button class="btn" id="exportImageBtn">Export Pixelated Map</button>
+                <button class="btn" id="exportDataBtn">Export Grid Data</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div id="map"></div>
+            <canvas id="pixelationCanvas" class="canvas-overlay"></canvas>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
+    <!-- Three.js for 3D drone -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <!-- Main App -->
+    <script src="drone-app.js"></script>
+</body>
+</html>

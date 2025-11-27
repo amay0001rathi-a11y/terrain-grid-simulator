@@ -12,6 +12,11 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Serve the drone simulator
+app.get('/drone', (req, res) => {
+    res.sendFile(path.join(__dirname, 'drone-simulator.html'));
+});
+
 // Error handling for port in use
 const server = app.listen(PORT, () => {
     console.log('');
