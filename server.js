@@ -2,15 +2,25 @@ const express = require('express');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 9000;
+const PORT = process.env.PORT || 3001;
 
-// Serve static files (CSS, JS, images)
-app.use(express.static(path.join(__dirname)));
+// Disable caching for development
+app.use((req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    next();
+});
 
-// Serve the main HTML file
+// Serve the main HTML file BEFORE static middleware
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'map-pixelator.html'));
 });
+
+// Serve static files (CSS, JS, images) - disable index.html auto-serving
+app.use(express.static(path.join(__dirname), {
+    index: false
+}));
 
 // Old versions for reference
 app.get('/old', (req, res) => {

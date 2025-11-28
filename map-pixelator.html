@@ -3,11 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terrain Map Pixelator</title>
-
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    <title>Terrain Pixelator</title>
 
     <style>
         * {
@@ -17,9 +13,9 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #1a1a1a;
-            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            background: #000000;
+            color: #00d4ff;
             overflow: hidden;
         }
 
@@ -30,10 +26,11 @@
 
         .sidebar {
             width: 320px;
-            background: #2a2a2a;
+            background: #000000;
             padding: 20px;
             overflow-y: auto;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+            box-shadow: 2px 0 10px rgba(0, 212, 255, 0.3);
+            border-right: 2px solid #00d4ff;
         }
 
         .main-content {
@@ -49,22 +46,27 @@
         h1 {
             font-size: 24px;
             margin-bottom: 20px;
-            color: #4CAF50;
+            color: #00d4ff;
+            text-shadow: 0 0 10px #00d4ff;
+            letter-spacing: 2px;
         }
 
         .panel {
-            background: #333;
-            border-radius: 8px;
+            background: #0a0a0a;
+            border: 1px solid #00d4ff;
+            border-radius: 4px;
             padding: 15px;
             margin-bottom: 15px;
+            box-shadow: 0 0 5px rgba(0, 212, 255, 0.2);
         }
 
         .panel h3 {
             font-size: 16px;
             margin-bottom: 12px;
-            color: #4CAF50;
-            border-bottom: 2px solid #4CAF50;
+            color: #00d4ff;
+            border-bottom: 1px solid #00d4ff;
             padding-bottom: 5px;
+            letter-spacing: 1px;
         }
 
         .input-group {
@@ -75,19 +77,22 @@
             display: block;
             margin-bottom: 5px;
             font-size: 13px;
-            color: #aaa;
+            color: #00d4ff;
+            font-family: 'Courier New', Courier, monospace;
         }
 
         input[type="text"],
         input[type="number"],
+        input[type="file"],
         select {
             width: 100%;
             padding: 8px;
-            background: #444;
-            border: 1px solid #555;
-            border-radius: 4px;
-            color: #fff;
+            background: #000000;
+            border: 1px solid #00d4ff;
+            border-radius: 2px;
+            color: #00d4ff;
             font-size: 13px;
+            font-family: 'Courier New', Courier, monospace;
         }
 
         input[type="range"] {
@@ -98,34 +103,42 @@
             width: 100%;
             padding: 10px;
             margin-top: 8px;
-            background: #555;
-            border: none;
-            border-radius: 4px;
-            color: #fff;
+            background: #000000;
+            border: 1px solid #00d4ff;
+            border-radius: 2px;
+            color: #00d4ff;
             cursor: pointer;
             font-size: 14px;
-            transition: background 0.3s;
+            font-family: 'Courier New', Courier, monospace;
+            transition: all 0.3s;
+            letter-spacing: 1px;
         }
 
         .btn:hover {
-            background: #666;
+            background: #00d4ff;
+            color: #000000;
+            box-shadow: 0 0 10px #00d4ff;
         }
 
         .btn.primary {
-            background: #4CAF50;
+            background: #003366;
+            border: 1px solid #00d4ff;
         }
 
         .btn.primary:hover {
-            background: #45a049;
+            background: #00d4ff;
+            color: #000000;
         }
 
         .info-box {
-            background: #1a1a1a;
+            background: #000000;
             padding: 10px;
-            border-radius: 4px;
+            border: 1px solid #00d4ff;
+            border-radius: 2px;
             margin-top: 10px;
             font-size: 12px;
-            color: #4CAF50;
+            color: #00d4ff;
+            font-family: 'Courier New', Courier, monospace;
         }
 
         .year-slider-container {
@@ -155,90 +168,70 @@
 <body>
     <div class="container">
         <div class="sidebar">
-            <h1>🗺️ Map Pixelator</h1>
+            <h1>TERRAIN PIXELATOR</h1>
 
-            <!-- Location Input -->
+            <!-- Image Upload -->
             <div class="panel">
-                <h3>Location</h3>
+                <h3>IMAGE UPLOAD</h3>
                 <div class="input-group">
-                    <label>Search Location:</label>
-                    <input type="text" id="locationSearch" placeholder="e.g., Ithaca, NY">
+                    <label>Select Terrain/Map Image:</label>
+                    <input type="file" id="imageUpload" accept="image/*">
                 </div>
-                <button class="btn primary" id="searchBtn">Search Location</button>
-                <div class="input-group" style="margin-top: 12px;">
-                    <label>Or Enter Coordinates:</label>
-                    <input type="number" id="latitude" placeholder="Latitude" step="0.000001" value="42.4440">
-                    <input type="number" id="longitude" placeholder="Longitude" step="0.000001" value="-76.5019" style="margin-top: 5px;">
-                </div>
-                <button class="btn" id="goToCoords">Go to Coordinates</button>
-            </div>
-
-            <!-- Year Timeline -->
-            <div class="panel">
-                <h3>Historical Timeline</h3>
-                <div class="year-slider-container">
-                    <div class="year-display" id="yearDisplay">2024</div>
-                    <input type="range" id="yearSlider" min="1984" max="2024" value="2024" step="1">
-                    <div class="timeline-marks">
-                        <span>1984</span>
-                        <span>2000</span>
-                        <span>2010</span>
-                        <span>2024</span>
-                    </div>
-                </div>
-                <div class="info-box" id="yearInfo">Showing current satellite imagery</div>
+                <button class="btn primary" id="loadImageBtn">Load Image</button>
+                <div class="info-box" id="imageInfo">No image loaded</div>
             </div>
 
             <!-- Boundary & Grid -->
             <div class="panel">
-                <h3>Survey Area & Grid</h3>
-                <button class="btn primary" id="drawPolygonBtn">Draw Polygon Area</button>
-                <button class="btn" id="drawRectangleBtn">Draw Rectangle</button>
+                <h3>DRAW AREA</h3>
+                <button class="btn primary" id="drawPolygonBtn">DRAW POLYGON</button>
+                <button class="btn" id="drawRectangleBtn">DRAW RECTANGLE</button>
+                <button class="btn" id="clearPolygonBtn" style="display: none;">CLEAR POLYGON</button>
+
                 <div class="input-group" style="margin-top: 12px;">
+                    <label>Survey Area (Hectares):</label>
+                    <input type="number" id="surveyAreaHa" min="1" max="1000" value="25" step="1">
+                </div>
+
+                <div class="input-group">
                     <label>Grid Cell Size (meters):</label>
                     <input type="number" id="gridCellSize" min="10" max="200" value="50" step="10">
                 </div>
-                <button class="btn" id="applyGridBtn">Apply Grid</button>
-                <div class="info-box" id="areaInfo">Draw an area to start</div>
+
+                <button class="btn" id="applyGridBtn">APPLY GRID</button>
+                <div class="info-box" id="areaInfo">Load image first</div>
             </div>
 
             <!-- Pixelation Settings -->
             <div class="panel">
-                <h3>Pixelation & 3D View</h3>
-                <button class="btn primary" id="pixelateBtn">Pixelate Area (2D)</button>
-                <button class="btn primary" id="show3DBtn">Show 3D View</button>
-                <button class="btn" id="resetBtn">Reset View</button>
-                <div class="info-box" id="pixelInfo">Draw an area to start</div>
+                <h3>PIXELATION</h3>
+                <button class="btn primary" id="pixelateBtn">PIXELATE AREA</button>
+                <button class="btn primary" id="show3DBtn">SHOW 3D VIEW</button>
+                <button class="btn" id="resetBtn">RESET</button>
+                <div class="info-box" id="pixelInfo">Load image first</div>
             </div>
 
             <!-- Export -->
             <div class="panel">
-                <h3>Export</h3>
-                <button class="btn" id="exportImageBtn">Export as PNG</button>
-                <button class="btn" id="exportDataBtn">Export Grid Data</button>
+                <h3>EXPORT</h3>
+                <button class="btn" id="exportImageBtn">EXPORT PNG</button>
+                <button class="btn" id="exportDataBtn">EXPORT GRID DATA</button>
             </div>
         </div>
 
-        <div class="main-content">
-            <div id="map"></div>
+        <div class="main-content" style="background: #000;">
+            <canvas id="imageCanvas" style="max-width: 100%; max-height: 100%; display: block; margin: auto; border: 2px solid #00d4ff;"></canvas>
             <div id="viewer3D" style="display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; background: #000;">
-                <button id="close3DBtn" style="position: absolute; top: 20px; right: 20px; z-index: 1000; padding: 10px 20px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Close 3D View</button>
+                <button id="close3DBtn" style="position: absolute; top: 20px; right: 20px; z-index: 1000; padding: 10px 20px; background: #003366; color: #00d4ff; border: 1px solid #00d4ff; border-radius: 2px; cursor: pointer; font-size: 14px; font-family: 'Courier New', Courier, monospace;">CLOSE 3D</button>
             </div>
         </div>
     </div>
-
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
-
-    <!-- html2canvas for capturing map -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <!-- Three.js for 3D visualization -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
 
     <!-- Main App -->
-    <script src="map-pixelator-3d.js"></script>
+    <script src="image-pixelator.js"></script>
 </body>
 </html>

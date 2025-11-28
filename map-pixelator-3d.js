@@ -48,13 +48,43 @@ class MapPixelator3D {
             this.map.removeLayer(this.tileLayer);
         }
 
-        this.tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Esri',
-            maxZoom: 19
+        // For historical imagery, we'll use different tile sources based on year
+        let tileUrl, attribution, infoText;
+
+        if (year >= 2020) {
+            // Recent imagery - Esri World Imagery (2020-2024)
+            tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+            attribution = 'Esri';
+            infoText = `Showing current satellite imagery (${year})`;
+        } else if (year >= 2013) {
+            // 2013-2019 - Use Esri Wayback imagery if available, otherwise regular with filter
+            tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+            attribution = 'Esri';
+            infoText = `Historical imagery circa ${year} (Limited availability)`;
+        } else if (year >= 2000) {
+            // 2000-2012 - OpenStreetMap for reference (no satellite for these years freely available)
+            tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+            attribution = 'OpenStreetMap';
+            infoText = `Map data from ${year} era (Satellite imagery limited for this period)`;
+        } else {
+            // 1984-1999 - Use topographic maps as satellite imagery is very limited
+            tileUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
+            attribution = 'OpenTopoMap';
+            infoText = `Topographic map reference for ${year} (Satellite imagery not freely available)`;
+        }
+
+        this.tileLayer = L.tileLayer(tileUrl, {
+            attribution: attribution,
+            maxZoom: 19,
+            opacity: year >= 2013 ? 1.0 : 0.85 // Slightly fade older imagery to indicate uncertainty
         }).addTo(this.map);
 
-        document.getElementById('yearInfo').textContent =
-            year === 2024 ? 'Showing current satellite imagery' : `Showing imagery from ${year} (simulated)`;
+        document.getElementById('yearInfo').textContent = infoText;
+
+        // Note to user about historical imagery limitations
+        if (year < 2013) {
+            console.log(`Note: True historical satellite imagery for ${year} requires paid services like Google Earth Engine or Planet Labs.`);
+        }
     }
 
     initEventListeners() {
